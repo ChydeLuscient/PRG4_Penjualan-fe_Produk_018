@@ -4,6 +4,7 @@ import FooterComponent from './components/templates/FooterComponent';
 import ListProdukComponent from './components/produk/ListProdukComponent';
 import AddProdukComponent from './components/produk/AddProdukComponent';
 import EditProdukComponent from './components/produk/EditProdukComponent';
+import DebugAPIComponent from './components/DebugAPIComponent';
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
             <Route path="/list-produk" element={<ListProdukComponent />} />
             <Route path="/tambah-produk" element={<AddProdukComponent />} />
             <Route path="/edit-produk/:id" element={<EditProdukComponent />} />
+            <Route path="/debug-api" element={<DebugAPIComponent />} />
           </Routes>
         </div>
         <FooterComponent />

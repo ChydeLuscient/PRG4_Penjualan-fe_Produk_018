@@ -19,12 +19,13 @@ function EditProdukComponent() {
   const [successMessage, setSuccessMessage] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fetchError, setFetchError] = useState(null);
 
   useEffect(() => {
     const fetchProduk = async () => {
       try {
         setLoading(true);
-        setError(null);
+        setFetchError(null);
         
         if (!id) {
           throw new Error('ID produk tidak valid');
@@ -40,15 +41,15 @@ function EditProdukComponent() {
         setFormData({
           nama_produk: produkData.nama_produk || '',
           jenis_produk: produkData.jenis_produk || '',
-          stok: produkData.stok || '',
-          harga_beli: produkData.harga_beli || '',
-          harga_jual: produkData.harga_jual || '',
+          stok: produkData.stok || '0',
+          harga_beli: produkData.harga_beli || '0',
+          harga_jual: produkData.harga_jual || '0',
           status: produkData.status || 'Aktif'
         });
         
       } catch (error) {
         console.error("❌ Error fetching product:", error);
-        setError(error.message || "Gagal mengambil data produk.");
+        setFetchError(error.message || "Gagal mengambil data produk.");
       } finally {
         setLoading(false);
       }
@@ -63,6 +64,8 @@ function EditProdukComponent() {
       ...prev,
       [name]: value
     }));
+    // Clear error when user starts typing
+    if (error) setError(null);
   };
 
   const handleSubmit = async (e) => {
@@ -79,7 +82,21 @@ function EditProdukComponent() {
       setError('Jenis produk harus diisi');
       return;
     }
-    if (parseFloat(formData.harga_jual) <= parseFloat(formData.harga_beli)) {
+    
+    const hargaBeli = parseFloat(formData.harga_beli);
+    const hargaJual = parseFloat(formData.harga_jual);
+    
+    if (isNaN(hargaBeli) || hargaBeli < 0) {
+      setError('Harga beli harus berupa angka positif');
+      return;
+    }
+    
+    if (isNaN(hargaJual) || hargaJual < 0) {
+      setError('Harga jual harus berupa angka positif');
+      return;
+    }
+    
+    if (hargaJual <= hargaBeli) {
       setError('Harga jual harus lebih besar dari harga beli');
       return;
     }
@@ -91,15 +108,20 @@ function EditProdukComponent() {
         nama_produk: formData.nama_produk.trim(),
         jenis_produk: formData.jenis_produk.trim(),
         stok: parseInt(formData.stok) || 0,
-        harga_beli: parseFloat(formData.harga_beli) || 0,
-        harga_jual: parseFloat(formData.harga_jual) || 0,
+        harga_beli: parseFloat(formData.harga_beli),
+        harga_jual: parseFloat(formData.harga_jual),
         status: formData.status,
       };
       
-      console.log('🔄 Updating product ID:', id, 'with data:', updatedProduct);
+      console.log('🔄 Updating product ID:', id);
+      console.log('📦 Data to send:', updatedProduct);
       
-      await updateProduk(id, updatedProduct);
-      setSuccessMessage('✅ Produk berhasil diperbarui! Mengalihkan...');
+      const response = await updateProduk(id, updatedProduct);
+      console.log('✅ Update response:', response);
+      
+      // Check response message
+      const message = response.data?.data?.message || 'Produk berhasil diperbarui!';
+      setSuccessMessage(`✅ ${message} Mengalihkan...`);
       
       setTimeout(() => {
         navigate('/list-produk');
@@ -107,7 +129,8 @@ function EditProdukComponent() {
       
     } catch (error) {
       console.error("❌ Error updating product:", error);
-      setError(error.message || "Gagal memperbarui produk. Silakan coba lagi.");
+      console.error("Error details:", error.response?.data);
+      setError(error.response?.data?.message || error.message || "Gagal memperbarui produk. Silakan coba lagi.");
     } finally {
       setIsSubmitting(false);
     }
@@ -120,17 +143,17 @@ function EditProdukComponent() {
           <span className="visually-hidden">Loading...</span>
         </div>
         <h4 className="text-muted mt-3">Memuat data produk...</h4>
-        <p>ID: {id}</p>
+        <p className="text-muted">ID: {id}</p>
       </div>
     );
   }
 
-  if (error && !loading) {
+  if (fetchError) {
     return (
       <div className="container mt-4">
         <div className="alert alert-danger">
           <h5>❌ Error</h5>
-          <p>{error}</p>
+          <p>{fetchError}</p>
           <div className="mt-3">
             <Link to="/list-produk" className="btn btn-secondary me-2">
               ← Kembali ke List Produk
@@ -166,8 +189,9 @@ function EditProdukComponent() {
             
             <div className="card-body">
               {error && (
-                <div className="alert alert-danger">
+                <div className="alert alert-danger alert-dismissible fade show">
                   {error}
+                  <button type="button" className="btn-close" onClick={() => setError(null)}></button>
                 </div>
               )}
               
@@ -249,7 +273,7 @@ function EditProdukComponent() {
                         value={formData.harga_beli}
                         onChange={handleInputChange}
                         min="0"
-                        step="1000"
+                        step="1"
                         disabled={isSubmitting}
                         required
                       />
@@ -269,7 +293,7 @@ function EditProdukComponent() {
                         value={formData.harga_jual}
                         onChange={handleInputChange}
                         min="0"
-                        step="1000"
+                        step="1"
                         disabled={isSubmitting}
                         required
                       />
@@ -292,8 +316,22 @@ function EditProdukComponent() {
                   </select>
                 </div>
 
+                <div className="alert alert-info">
+                  <small>
+                    <strong>💡 Tips:</strong> Pastikan harga jual lebih besar dari harga beli untuk margin keuntungan.
+                  </small>
+                </div>
+
                 <div className="d-grid gap-2 d-md-flex justify-content-md-end">
-                  <Link to="/list-produk" className="btn btn-secondary me-md-2">
+                  <Link 
+                    to="/list-produk" 
+                    className="btn btn-secondary me-md-2"
+                    onClick={(e) => {
+                      if (isSubmitting) {
+                        e.preventDefault();
+                      }
+                    }}
+                  >
                     Batal
                   </Link>
                   <button 
